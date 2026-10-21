@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!--
+      GitHub Pages cannot send security headers, so the policy is set here.
+      It also enforces the "no external resources at runtime" rule: only files
+      from this site may load. data:/blob: are for Phaser's built-in textures.
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; media-src 'self' data: blob:; object-src 'none'; base-uri 'self'; form-action 'none'"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" content="#0b0d1a" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <title>AI AI Captain</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #0b0d1a;
+        overflow: hidden;
+        touch-action: none;
+      }
+      #game {
+        width: 100%;
+        height: 100%;
+      }
+      #rotate-device {
+        display: none;
+      }
+      /* The game is landscape-only; on phones held upright, ask the player to rotate. */
+      @media (orientation: portrait) and (pointer: coarse) {
+        #rotate-device {
+          position: fixed;
+          inset: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 2em;
+          background: #0b0d1a;
+          color: #e8e8f0;
+          font-family: monospace;
+          font-size: 1.2em;
+          text-align: center;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="game"></div>
+    <div id="rotate-device">Turn your device sideways to play</div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
