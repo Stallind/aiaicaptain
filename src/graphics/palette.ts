@@ -23,4 +23,15 @@ export const COLORS = {
   rock: '#5d5470',
   rockLight: '#8a7fa0',
   rockDark: '#3a3248',
+  // Skin, hair and clothing tones (Oh Scarrr).
+  skinHighlight: '#f4d8c2',
+  skinLight: '#e8b998',
+  skin: '#d19a7b',
+  skinShadow: '#b47b62',
+  skinDark: '#8c5c49',
+  hairLight: '#5e3d31',
+  hair: '#3b2a22',
+  shirtLight: '#76644f',
+  shirt: '#5b4c3d',
+  shirtDark: '#3e3429',
 } as const;

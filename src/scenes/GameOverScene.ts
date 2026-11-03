@@ -1,8 +1,10 @@
 import Phaser from 'phaser';
 import { SCENE_KEYS } from '../config/scenes';
+import { STRINGS } from '../config/strings';
 import { FONT_SIZE, GAME_OVER_LAYOUT } from '../config/ui';
 import { COLORS } from '../graphics/palette';
-import { createGameStorage } from '../systems/storage';
+import { storageOf } from '../systems/sharedStorage';
+import type { ScoreResult } from '../systems/storage';
 import { ContinuePrompt } from './ContinuePrompt';
 import { parseGameOverSceneData } from './sceneData';
 import { addCenteredText, addPrompt, primaryControlsHint } from './textHelpers';
@@ -17,8 +19,8 @@ export class GameOverScene extends Phaser.Scene {
   create(rawData: unknown): void {
     const data = parseGameOverSceneData(rawData);
     const { height } = this.scale.gameSize;
-    const storage = createGameStorage();
-    const isRecord = storage.submitScore(data.score);
+    const storage = storageOf(this);
+    const result = storage.submitScore(data.score);
     const titleY = height * GAME_OVER_LAYOUT.titleY;
     const scoreY = height * GAME_OVER_LAYOUT.scoreY;
 
@@ -30,8 +32,8 @@ export class GameOverScene extends Phaser.Scene {
     const subtitleY = titleY + GAME_OVER_LAYOUT.subtitleGap;
     addCenteredText(this, subtitleY, subtitle, FONT_SIZE.body, COLORS.steelLight);
     addCenteredText(this, scoreY, `SCORE ${data.score}`, FONT_SIZE.score, COLORS.yellow);
-    const best = isRecord ? 'NEW HIGHSCORE!' : `Highscore ${storage.getHighscore()}`;
-    const bestColor = isRecord ? COLORS.orange : COLORS.steel;
+    const best = highscoreLine(result, storage.getHighscore());
+    const bestColor = result.isRecord ? COLORS.orange : COLORS.steel;
     const bestY = scoreY + GAME_OVER_LAYOUT.highscoreGap;
     addCenteredText(this, bestY, best, FONT_SIZE.body, bestColor);
     addPrompt(this, height * GAME_OVER_LAYOUT.promptY, primaryControlsHint(this));
@@ -42,4 +44,10 @@ export class GameOverScene extends Phaser.Scene {
   override update(): void {
     if (this.prompt?.update()) this.scene.start(SCENE_KEYS.menu);
   }
+}
+
+/** Only claims a saved record when it really was written to storage. */
+function highscoreLine(result: ScoreResult, highscore: number): string {
+  if (!result.isRecord) return `Highscore ${highscore}`;
+  return result.saved ? 'NEW HIGHSCORE!' : STRINGS.highscoreNotSaved;
 }

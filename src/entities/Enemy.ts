@@ -26,8 +26,13 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     playIfExists(this, definition.id, 'walk');
   }
 
-  get bodyTop(): number {
-    return this.physicsBody.top;
+  /** Hitbox top at the start of the current physics step (Arcade's `prev` position). */
+  get previousBodyTop(): number {
+    return this.physicsBody.prev.y;
+  }
+
+  get velocityY(): number {
+    return this.physicsBody.velocity.y;
   }
 
   updateBehaviors(time: number, delta: number): void {

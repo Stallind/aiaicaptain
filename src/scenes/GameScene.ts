@@ -1,7 +1,15 @@
 import Phaser from 'phaser';
 import { CAMERA, SCORE, TIMING, WORLD_LIMITS } from '../config/constants';
 import { SCENE_KEYS } from '../config/scenes';
-import { firstLevelId, getLevel, hasLevel } from '../content/registry';
+import { ROTATE_PROMPT_QUERY } from '../config/strings';
+import {
+  firstLevelId,
+  getLevel,
+  getPlayerCharacter,
+  hasLevel,
+  isPlayerCharacter,
+  playerCharacterOf,
+} from '../content/registry';
 import type { LevelDefinition } from '../content/types';
 import { EventBus } from '../events/EventBus';
 import { createInput } from '../input/InputController';
@@ -20,6 +28,7 @@ type PlayState = 'playing' | 'dying' | 'complete';
 /** Orchestrates one level: builds it, runs the systems each frame and handles the outcome. */
 export class GameScene extends Phaser.Scene {
   private level!: LevelDefinition;
+  private playerId!: string;
   private levelWorld!: LevelWorld;
   private controls!: InputController;
   private background!: ParallaxBackground;
@@ -27,20 +36,29 @@ export class GameScene extends Phaser.Scene {
   private score!: ScoreSystem;
   private collisions!: CollisionSystem;
   private state: PlayState = 'playing';
+  /** Same query as the "turn your device" overlay, so the game only pauses when the prompt is visible. */
+  private rotatePrompt!: MediaQueryList;
 
   constructor() {
     super(SCENE_KEYS.game);
   }
 
   create(rawData: unknown): void {
-    const data = parseGameSceneData(rawData, hasLevel, firstLevelId());
+    const data = parseGameSceneData(rawData, {
+      isKnownLevel: hasLevel,
+      fallbackLevelId: firstLevelId(),
+      isKnownPlayer: isPlayerCharacter,
+      fallbackPlayerId: playerCharacterOf(getLevel(firstLevelId())).id,
+    });
     this.level = getLevel(data.levelId);
+    this.playerId = data.playerId;
     this.state = 'playing';
     this.physics.world.gravity.y = this.level.gravity;
     this.background = new ParallaxBackground(this, this.level.background);
-    this.levelWorld = buildLevel(this, this.level);
+    this.levelWorld = buildLevel(this, this.level, getPlayerCharacter(data.playerId));
     this.setupBounds();
     this.controls = createInput(this, { touchButtons: true });
+    this.rotatePrompt = window.matchMedia(ROTATE_PROMPT_QUERY);
     this.bus = EventBus.of(this);
     this.score = new ScoreSystem(this.bus, data.score);
     new ScorePopups(this, this.bus);
@@ -65,11 +83,10 @@ export class GameScene extends Phaser.Scene {
     if (this.state === 'playing') this.collisions.update(time);
   }
 
-  /** Pause on request, or automatically when a phone is turned to portrait. */
+  /** Pause on request, or automatically while the "turn your device" prompt is shown. */
   private shouldPause(): boolean {
     if (this.state !== 'playing') return false;
-    const turnedToPortrait = this.sys.game.device.input.touch && this.scale.isPortrait;
-    return this.controls.justPressed('pause') || turnedToPortrait;
+    return this.controls.justPressed('pause') || this.rotatePrompt.matches;
   }
 
   private setupBounds(): void {
@@ -149,7 +166,7 @@ export class GameScene extends Phaser.Scene {
       this.scene.start(SCENE_KEYS.gameOver, data);
       return;
     }
-    const data: GameSceneData = { levelId: next, score: this.score.score };
+    const data: GameSceneData = { levelId: next, score: this.score.score, playerId: this.playerId };
     this.scene.restart(data);
   }
 }

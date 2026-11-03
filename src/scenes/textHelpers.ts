@@ -1,6 +1,7 @@
 import type Phaser from 'phaser';
 import { FONT_FAMILY, FONT_SIZE, PROMPT_PULSE } from '../config/ui';
 import { COLORS } from '../graphics/palette';
+import { keysFor } from '../input/keyNames';
 
 export function addCenteredText(
   scene: Phaser.Scene,
@@ -34,5 +35,6 @@ export function addPrompt(scene: Phaser.Scene, y: number, text: string): Phaser.
 }
 
 export function primaryControlsHint(scene: Phaser.Scene): string {
-  return scene.sys.game.device.input.touch ? 'Tap to continue' : 'Press SPACE / A to continue';
+  if (scene.sys.game.device.input.touch) return 'Tap to continue';
+  return `Press ${keysFor('jump', 1)} to continue`;
 }

@@ -1,22 +1,31 @@
-import { COLORS } from '../graphics/palette';
+import { STRINGS } from '../config/strings';
 import { FONT_FAMILY } from '../config/ui';
+import { COLORS } from '../graphics/palette';
 
 const OVERLAY_ID = 'fatal-error';
 
 /**
- * Any uncaught error inside Phaser's game loop stops rendering and leaves a
- * frozen canvas. Catch those at the window level and tell the player instead.
- * Details go to the console only; nothing is shown that could leak internals.
+ * Any uncaught error inside Phaser's game loop leaves a frozen canvas. Catch
+ * those at the window level, stop the game (`onFatal`) and tell the player what
+ * happened and what to do. The error message is shown collapsed so it can be
+ * included in a bug report; a static game has nothing secret to leak.
  */
-export function installErrorOverlay(target: Window = window): void {
-  target.addEventListener('error', (event) => showFatalError(target.document, event.error));
-  target.addEventListener('unhandledrejection', (event) =>
-    showFatalError(target.document, event.reason),
-  );
+export function installErrorOverlay(onFatal: () => void, target: Window = window): void {
+  const handle = (error: unknown): void => {
+    console.error('AI AI Captain stopped because of an error:', error);
+    onFatal();
+    showFatalError(target.document, error);
+  };
+  target.addEventListener('error', (event) => handle(event.error ?? event.message));
+  target.addEventListener('unhandledrejection', (event) => handle(event.reason));
+}
+
+function describe(error: unknown): string {
+  if (error instanceof Error) return `${error.name}: ${error.message}`;
+  return typeof error === 'string' && error !== '' ? error : 'Unknown error';
 }
 
 function showFatalError(doc: Document, error: unknown): void {
-  console.error('AI AI Captain stopped because of an error:', error);
   if (doc.getElementById(OVERLAY_ID)) return;
   const overlay = doc.createElement('div');
   overlay.id = OVERLAY_ID;
@@ -35,11 +44,23 @@ function showFatalError(doc: Document, error: unknown): void {
     textAlign: 'center',
     padding: '1em',
   });
-  const message = doc.createElement('p');
-  message.textContent = 'Something went wrong and the game had to stop.';
+
+  const title = doc.createElement('h1');
+  title.textContent = STRINGS.fatalErrorTitle;
+  const help = doc.createElement('p');
+  help.textContent = STRINGS.fatalErrorHelp;
   const button = doc.createElement('button');
-  button.textContent = 'Reload';
+  button.textContent = STRINGS.reload;
   button.addEventListener('click', () => doc.location.reload());
-  overlay.append(message, button);
+
+  const details = doc.createElement('details');
+  const summary = doc.createElement('summary');
+  summary.textContent = STRINGS.fatalErrorDetails;
+  const message = doc.createElement('code');
+  message.textContent = describe(error);
+  details.append(summary, message);
+
+  overlay.append(title, help, button, details);
   doc.body.append(overlay);
+  button.focus();
 }

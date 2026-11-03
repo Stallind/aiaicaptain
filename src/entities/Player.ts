@@ -44,6 +44,22 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     return this.physicsBody.bottom;
   }
 
+  /**
+   * Feet at the start of the current physics step. Arcade stores the body's
+   * top-left position from before the move in `prev`; collisions don't change it.
+   */
+  get previousFeetY(): number {
+    return this.physicsBody.prev.y + this.physicsBody.height;
+  }
+
+  get bodyLeft(): number {
+    return this.physicsBody.left;
+  }
+
+  get bodyRight(): number {
+    return this.physicsBody.right;
+  }
+
   get velocityY(): number {
     return this.physicsBody.velocity.y;
   }

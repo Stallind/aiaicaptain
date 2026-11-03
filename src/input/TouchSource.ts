@@ -1,7 +1,9 @@
 import Phaser from 'phaser';
 import { DEPTH, TOUCH_CONTROLS } from '../config/constants';
+import type { TouchButtonSpec } from '../config/constants';
 import { FONT_FAMILY } from '../config/ui';
 import { COLORS } from '../graphics/palette';
+import { touchButtonCentre } from '../utils/touchLayout';
 import type { Action, InputSource } from './actions';
 
 interface TouchButton {
@@ -11,31 +13,16 @@ interface TouchButton {
 }
 
 /**
- * On-screen buttons. Every active pointer is tested against every button each
- * frame, which handles multi-touch and sliding a thumb between buttons.
+ * On-screen buttons, laid out from TOUCH_CONTROLS.buttons. Every active pointer
+ * is tested against every button each frame, which handles multi-touch and
+ * sliding a thumb between buttons. The number of tracked fingers is set once in
+ * the game config (input.activePointers).
  */
 export class TouchSource implements InputSource {
   private readonly buttons: TouchButton[];
 
   constructor(private readonly scene: Phaser.Scene) {
-    scene.input.addPointer(2);
-    const { width, height } = scene.scale.gameSize;
-    const radius = TOUCH_CONTROLS.buttonRadius;
-    const margin = TOUCH_CONTROLS.margin;
-    const bottomRowY = height - margin - radius;
-    const pauseRadius = radius / 2;
-    this.buttons = [
-      this.createButton('left', margin + radius, bottomRowY, radius, '<'),
-      this.createButton('right', margin * 2 + radius * 3, bottomRowY, radius, '>'),
-      this.createButton('jump', width - margin - radius, bottomRowY, radius, 'A'),
-      this.createButton(
-        'pause',
-        width - margin - pauseRadius,
-        margin + pauseRadius,
-        pauseRadius,
-        'II',
-      ),
-    ];
+    this.buttons = TOUCH_CONTROLS.buttons.map((spec) => this.createButton(spec));
   }
 
   update(): void {
@@ -60,20 +47,25 @@ export class TouchSource implements InputSource {
     return false;
   }
 
-  private createButton(
-    action: Action,
-    x: number,
-    y: number,
-    radius: number,
-    label: string,
-  ): TouchButton {
+  private createButton(spec: TouchButtonSpec): TouchButton {
+    const { width, height } = this.scene.scale.gameSize;
+    const radius = TOUCH_CONTROLS.buttonRadius * spec.size;
+    const { x, y } = touchButtonCentre({
+      anchor: spec.anchor,
+      slot: spec.slot,
+      radius,
+      slotRadius: TOUCH_CONTROLS.buttonRadius,
+      margin: TOUCH_CONTROLS.margin,
+      screenWidth: width,
+      screenHeight: height,
+    });
     const fill = Phaser.Display.Color.HexStringToColor(COLORS.steelLight).color;
     const circle = this.scene.add
       .circle(x, y, radius, fill, TOUCH_CONTROLS.alpha)
       .setScrollFactor(0)
       .setDepth(DEPTH.touchControls);
     this.scene.add
-      .text(x, y, label, {
+      .text(x, y, spec.label, {
         fontFamily: FONT_FAMILY,
         fontSize: `${Math.round(radius * TOUCH_CONTROLS.labelScale)}px`,
         color: COLORS.void,
@@ -81,6 +73,6 @@ export class TouchSource implements InputSource {
       .setOrigin(0.5)
       .setScrollFactor(0)
       .setDepth(DEPTH.touchControls);
-    return { action, circle, pressed: false };
+    return { action: spec.action, circle, pressed: false };
   }
 }

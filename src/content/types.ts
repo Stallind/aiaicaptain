@@ -47,9 +47,19 @@ export interface BaseCharacterDefinition {
   readonly body: BodySpec;
 }
 
+/** A single still image, e.g. the large face shown on the character select screen. */
+export interface PortraitData {
+  readonly palette: Palette;
+  readonly frame: SpriteFrame;
+}
+
 export interface PlayerDefinition extends BaseCharacterDefinition {
   readonly kind: 'player';
   readonly stats: CharacterStats;
+  /** Shown on the character select screen. */
+  readonly displayName: string;
+  readonly tagline: string;
+  readonly portrait: PortraitData;
 }
 
 export interface EnemyDefinition extends BaseCharacterDefinition {

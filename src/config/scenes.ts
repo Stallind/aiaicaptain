@@ -1,6 +1,7 @@
 export const SCENE_KEYS = {
   boot: 'BootScene',
   menu: 'MenuScene',
+  characterSelect: 'CharacterSelectScene',
   game: 'GameScene',
   hud: 'HudScene',
   pause: 'PauseScene',
@@ -14,6 +15,10 @@ export const TEXTURE_KEYS = {
   heart: 'ui-heart',
   heartEmpty: 'ui-heart-empty',
 } as const;
+
+export function portraitTextureKey(characterId: string): string {
+  return `${characterId}:portrait`;
+}
 
 /** Tileset name shared by the generated Tiled JSON and the generated texture. */
 export const TILESET_NAME = 'space-tiles';

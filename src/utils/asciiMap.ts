@@ -18,6 +18,10 @@ export interface AsciiMapOptions {
  * Converts a hand-written ASCII layout into a Tiled-compatible map. Entities
  * become point objects at the bottom-centre of their cell, so sprites with
  * origin (0.5, 1) stand on the floor below them.
+ *
+ * Expects a layout that passed validateLevel: the width is taken from the first
+ * row, so shorter rows are padded with empty tiles and longer rows are cut off
+ * without warning.
  */
 export function asciiToTiledMap(options: AsciiMapOptions): TiledMap {
   const { layout, tileChars, entities, tileSize } = options;

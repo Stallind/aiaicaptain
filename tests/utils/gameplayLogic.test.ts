@@ -53,6 +53,11 @@ describe('Health', () => {
     expect(health.value).toBe(1);
   });
 
+  it('refuses to start at zero, which would make anything unkillable', () => {
+    expect(() => new Health(0, 0)).toThrow(/at least 1/);
+    expect(() => new Health(1.5, 0)).toThrow();
+  });
+
   it('dies at zero and never goes negative', () => {
     const health = new Health(1, 0);
     health.damage(5, 0);
@@ -63,11 +68,75 @@ describe('Health', () => {
 });
 
 describe('combat', () => {
-  it('detects stomps only while falling onto the top', () => {
-    const base = { playerBottom: 100, enemyTop: 97, tolerance: 6 };
-    expect(isStomp({ ...base, playerVelocityY: 200 })).toBe(true);
-    expect(isStomp({ ...base, playerVelocityY: -50 })).toBe(false);
-    expect(isStomp({ ...base, playerVelocityY: 200, enemyTop: 80 })).toBe(false);
+  // A blob's hitbox top on the ground is at y = 311 (9 px tall, floor at 320).
+  const blobTop = 311;
+  const tolerance = 6;
+
+  it('counts a fast fall that ends deep inside the enemy (the old precision bug)', () => {
+    // At the 520 px/s fall cap the player moves ~8.7 px per step: from 3 px above
+    // the enemy to ~5.7 px inside it. Checking the position after the move used to miss this.
+    expect(
+      isStomp({
+        previousPlayerBottom: blobTop - 3,
+        previousEnemyTop: blobTop,
+        relativeVelocityY: 520,
+        tolerance,
+      }),
+    ).toBe(true);
+  });
+
+  it('counts a landing when the ground collision has already stopped the player', () => {
+    expect(
+      isStomp({
+        previousPlayerBottom: blobTop - 1,
+        previousEnemyTop: blobTop,
+        relativeVelocityY: 0,
+        tolerance,
+      }),
+    ).toBe(true);
+  });
+
+  it('counts an enemy jumping up into a player above it', () => {
+    expect(
+      isStomp({
+        previousPlayerBottom: 200,
+        previousEnemyTop: 203,
+        relativeVelocityY: 0 - -300,
+        tolerance,
+      }),
+    ).toBe(true);
+  });
+
+  it('treats walking into the side, or rising into it from below, as a hit', () => {
+    // Standing on the floor: feet at 320, well below the blob's top.
+    expect(
+      isStomp({
+        previousPlayerBottom: 320,
+        previousEnemyTop: blobTop,
+        relativeVelocityY: 0,
+        tolerance,
+      }),
+    ).toBe(false);
+    // Jumping up into a flyer from underneath.
+    expect(
+      isStomp({
+        previousPlayerBottom: 260,
+        previousEnemyTop: 240,
+        relativeVelocityY: -370,
+        tolerance,
+      }),
+    ).toBe(false);
+  });
+
+  it('does not count moving away from an enemy below', () => {
+    expect(
+      isStomp({
+        previousPlayerBottom: blobTop - 2,
+        previousEnemyTop: blobTop,
+        relativeVelocityY: -100,
+        tolerance,
+      }),
+    ).toBe(false);
   });
 
   it('pushes the player away from the source', () => {

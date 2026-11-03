@@ -7,6 +7,10 @@ export class Health {
     readonly max: number,
     private readonly invulnerableMs: number,
   ) {
+    // Starting at 0 would count as already dead, and dead things can't be damaged: unkillable.
+    if (!Number.isInteger(max) || max < 1) {
+      throw new Error(`Health must start at a whole number of at least 1, got ${max}`);
+    }
     this.current = max;
   }
 

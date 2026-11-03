@@ -3,7 +3,8 @@ import type { CharacterKind, LevelDefinition } from '../../src/content/types';
 import { validateLevel } from '../../src/utils/validateLevel';
 
 const context = {
-  tileChars: ['#'],
+  tileChars: ['#', '-'],
+  solidTileChars: ['#'],
   characterKinds: new Map<string, CharacterKind>([
     ['hero', 'player'],
     ['exit', 'goal'],
@@ -32,9 +33,10 @@ describe('validateLevel', () => {
     expect(errors).toContain('level needs at least one goal');
   });
 
-  it('rejects unknown layout characters and uneven rows', () => {
-    const errors = validateLevel({ ...base, layout: ['P.xG', '###'] }, context);
-    expect(errors).toContain('row 0 contains unknown character "x"');
+  it('reports each unknown character once per row, with column and count', () => {
+    const errors = validateLevel({ ...base, layout: ['PxxG', '##y'] }, context);
+    expect(errors).toContain('row 0, column 1: unknown character "x" (×2)');
+    expect(errors).toContain('row 1, column 2: unknown character "y"');
     expect(errors).toContain('row 1 has length 3, expected 4');
   });
 
@@ -47,9 +49,25 @@ describe('validateLevel', () => {
     expect(errors).toContain('entity "#" refers to unknown character "ghost"');
   });
 
-  it('rejects bad gravity and unknown next level', () => {
-    const errors = validateLevel({ ...base, gravity: 0, nextLevel: 'missing' }, context);
-    expect(errors).toContain('gravity must be positive, got 0');
-    expect(errors).toContain('nextLevel "missing" is not registered');
+  it('rejects zero, negative and infinite gravity', () => {
+    for (const gravity of [0, -1, Infinity, NaN]) {
+      expect(validateLevel({ ...base, gravity }, context)).toContain(
+        `gravity must be a positive number, got ${gravity}`,
+      );
+    }
+  });
+
+  it('rejects an unknown next level and a level that leads to itself', () => {
+    expect(validateLevel({ ...base, nextLevel: 'missing' }, context)).toContain(
+      'nextLevel "missing" is not registered',
+    );
+    expect(validateLevel({ ...base, nextLevel: 'test' }, context)).toContain(
+      'nextLevel points to the level itself',
+    );
+  });
+
+  it('rejects a player spawn above a pit, even with a non-solid tile below', () => {
+    const errors = validateLevel({ ...base, layout: ['P..G', '-...', '.###'] }, context);
+    expect(errors).toContain('player spawn at row 0, column 0 has no ground below it');
   });
 });

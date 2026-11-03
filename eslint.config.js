@@ -14,5 +14,10 @@ export default tseslint.config(
       '@typescript-eslint/consistent-type-imports': 'error',
     },
   },
+  {
+    // Dev-only scripts (never shipped) run in Node, not the browser.
+    files: ['tools/**/*.mjs'],
+    languageOptions: { globals: { ...globals.node } },
+  },
   prettier,
 );

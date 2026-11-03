@@ -6,6 +6,16 @@
 export interface GameSceneData {
   readonly levelId: string;
   readonly score: number;
+  /** The chosen player character; carried from level to level. */
+  readonly playerId: string;
+}
+
+/** What the game scene needs to check incoming data against the registry. */
+export interface GameSceneDefaults {
+  readonly isKnownLevel: (id: string) => boolean;
+  readonly fallbackLevelId: string;
+  readonly isKnownPlayer: (id: string) => boolean;
+  readonly fallbackPlayerId: string;
 }
 
 export interface HudSceneData {
@@ -35,15 +45,15 @@ function text(value: unknown, fallback: string): string {
   return typeof value === 'string' ? value : fallback;
 }
 
-export function parseGameSceneData(
-  data: unknown,
-  isKnownLevel: (id: string) => boolean,
-  fallbackLevelId: string,
-): GameSceneData {
-  const levelId = field(data, 'levelId');
+function knownId(value: unknown, isKnown: (id: string) => boolean, fallback: string): string {
+  return typeof value === 'string' && isKnown(value) ? value : fallback;
+}
+
+export function parseGameSceneData(data: unknown, defaults: GameSceneDefaults): GameSceneData {
   return {
-    levelId: typeof levelId === 'string' && isKnownLevel(levelId) ? levelId : fallbackLevelId,
+    levelId: knownId(field(data, 'levelId'), defaults.isKnownLevel, defaults.fallbackLevelId),
     score: count(field(data, 'score')),
+    playerId: knownId(field(data, 'playerId'), defaults.isKnownPlayer, defaults.fallbackPlayerId),
   };
 }
 

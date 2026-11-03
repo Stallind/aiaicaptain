@@ -5,23 +5,32 @@ import {
   parseHudSceneData,
 } from '../../src/scenes/sceneData';
 
-const isKnown = (id: string) => id === 'moon';
+const defaults = {
+  isKnownLevel: (id: string) => id === 'moon',
+  fallbackLevelId: 'start',
+  isKnownPlayer: (id: string) => id === 'hero',
+  fallbackPlayerId: 'default-hero',
+};
 
 describe('parseGameSceneData', () => {
   it('keeps valid data', () => {
-    expect(parseGameSceneData({ levelId: 'moon', score: 40 }, isKnown, 'start')).toEqual({
+    expect(parseGameSceneData({ levelId: 'moon', score: 40, playerId: 'hero' }, defaults)).toEqual({
       levelId: 'moon',
       score: 40,
+      playerId: 'hero',
     });
   });
 
   it('falls back for missing, unknown or malformed fields', () => {
-    expect(parseGameSceneData(undefined, isKnown, 'start')).toEqual({ levelId: 'start', score: 0 });
-    expect(parseGameSceneData({ levelId: 'mars', score: -5 }, isKnown, 'start')).toEqual({
+    expect(parseGameSceneData(undefined, defaults)).toEqual({
       levelId: 'start',
       score: 0,
+      playerId: 'default-hero',
     });
-    expect(parseGameSceneData({ levelId: 7, score: 1.5 }, isKnown, 'start').score).toBe(0);
+    expect(
+      parseGameSceneData({ levelId: 'mars', score: -5, playerId: 'villain' }, defaults),
+    ).toEqual({ levelId: 'start', score: 0, playerId: 'default-hero' });
+    expect(parseGameSceneData({ levelId: 7, score: 1.5 }, defaults).score).toBe(0);
   });
 });
 

@@ -3,7 +3,7 @@ import { DEPTH, TILE_SIZE } from '../config/constants';
 import { ENTITY_LAYER, GROUND_LAYER, TEXTURE_KEYS, TILESET_NAME } from '../config/scenes';
 import { getCharacter, levelValidationContext } from '../content/registry';
 import { TILES, TILE_CHARS } from '../content/tiles';
-import type { LevelDefinition, TileDefinition } from '../content/types';
+import type { LevelDefinition, PlayerDefinition, TileDefinition } from '../content/types';
 import { Collectible } from '../entities/Collectible';
 import { Enemy } from '../entities/Enemy';
 import { Goal } from '../entities/Goal';
@@ -30,11 +30,16 @@ function tileIdsWhere(predicate: (tile: TileDefinition) => boolean): number[] {
   return TILES.flatMap((tile, i) => (predicate(tile) ? [i + 1] : []));
 }
 
-export function buildLevel(scene: Phaser.Scene, level: LevelDefinition): LevelWorld {
+/** Builds the level; `player` is spawned at the level's player spawn point, whatever character the layout names. */
+export function buildLevel(
+  scene: Phaser.Scene,
+  level: LevelDefinition,
+  player: PlayerDefinition,
+): LevelWorld {
   assertLevelIsValid(level);
   const map = createTilemap(scene, level);
-  const ground = createGroundLayer(map);
-  const spawned = spawnEntities(scene, map, ground);
+  const ground = createGroundLayer(scene, map, level.id);
+  const spawned = spawnEntities(scene, map, ground, player, level.id);
   return { map, ground, ...spawned, hazardIndexes: new Set(tileIdsWhere((t) => t.hazard)) };
 }
 
@@ -64,15 +69,29 @@ function createTilemap(scene: Phaser.Scene, level: LevelDefinition): Phaser.Tile
   const map = scene.make.tilemap({ key });
   // Phaser falls back to an empty map instead of failing when parsing goes wrong.
   if (map.width === 0 || map.getLayerIndex(GROUND_LAYER) === null) {
-    throw new Error(`Tilemap for level "${level.id}" could not be parsed`);
+    throw new Error(
+      `Tilemap for level "${level.id}" could not be parsed – Phaser logged the reason in the console`,
+    );
   }
   return map;
 }
 
-function createGroundLayer(map: Phaser.Tilemaps.Tilemap): Phaser.Tilemaps.TilemapLayer {
+function createGroundLayer(
+  scene: Phaser.Scene,
+  map: Phaser.Tilemaps.Tilemap,
+  levelId: string,
+): Phaser.Tilemaps.TilemapLayer {
+  if (!scene.textures.exists(TEXTURE_KEYS.tiles)) {
+    throw new Error(
+      `Tileset texture "${TEXTURE_KEYS.tiles}" is missing – BootScene must run before GameScene`,
+    );
+  }
   const tileset = map.addTilesetImage(TILESET_NAME, TEXTURE_KEYS.tiles);
-  const layer = tileset ? map.createLayer(GROUND_LAYER, tileset) : null;
-  if (!layer) throw new Error('Could not create the ground layer');
+  if (!tileset)
+    throw new Error(`Level "${levelId}": tileset "${TILESET_NAME}" not found in the map`);
+  const layer = map.createLayer(GROUND_LAYER, tileset);
+  if (!layer)
+    throw new Error(`Level "${levelId}": tile layer "${GROUND_LAYER}" not found in the map`);
   layer.setDepth(DEPTH.tiles);
   layer.setCollision(tileIdsWhere((t) => t.solid));
   const oneWay = new Set(tileIdsWhere((t) => t.oneWay));
@@ -95,6 +114,8 @@ function spawnEntities(
   scene: Phaser.Scene,
   map: Phaser.Tilemaps.Tilemap,
   ground: Phaser.Tilemaps.TilemapLayer,
+  chosenPlayer: PlayerDefinition,
+  levelId: string,
 ): Pick<LevelWorld, 'player' | 'enemies' | 'collectibles' | 'goals'> {
   let player: Player | undefined;
   const enemies: Enemy[] = [];
@@ -102,14 +123,21 @@ function spawnEntities(
   const goals: Goal[] = [];
 
   const objectLayer = map.getObjectLayer(ENTITY_LAYER);
-  if (!objectLayer) throw new Error(`Tilemap has no "${ENTITY_LAYER}" object layer`);
+  if (!objectLayer) {
+    throw new Error(`Level "${levelId}": object layer "${ENTITY_LAYER}" not found in the map`);
+  }
   for (const object of objectLayer.objects) {
     const definition = getCharacter(object.name);
-    const x = object.x ?? 0;
-    const y = object.y ?? 0;
+    // Maps from the Tiled editor may omit coordinates; placing at 0,0 would hide the mistake.
+    if (object.x === undefined || object.y === undefined) {
+      throw new Error(
+        `Level "${levelId}": object "${object.name}" (id ${object.id}) has no position`,
+      );
+    }
+    const { x, y } = object;
     switch (definition.kind) {
       case 'player':
-        player = new Player(scene, x, y, definition);
+        player = new Player(scene, x, y, chosenPlayer);
         break;
       case 'enemy':
         enemies.push(new Enemy(scene, x, y, definition, ground));
@@ -122,6 +150,10 @@ function spawnEntities(
         break;
     }
   }
-  if (!player) throw new Error('Level has no player spawn');
+  if (!player) {
+    throw new Error(
+      `Level "${levelId}" has no player spawn – add a 'P' (or another player character) to its layout`,
+    );
+  }
   return { player, enemies, collectibles, goals };
 }

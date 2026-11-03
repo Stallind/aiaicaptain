@@ -1,3 +1,5 @@
+import type { Action } from '../input/actions';
+
 export const TILE_SIZE = 16;
 
 export const PLAYER_TUNING = {
@@ -11,7 +13,7 @@ export const PLAYER_TUNING = {
   invulnerableMs: 1200,
   /** Fraction of jump velocity used for the bounce after a stomp. */
   stompBounceFactor: 0.75,
-  /** Pixels of overlap still counted as landing on top of an enemy. */
+  /** How far below the enemy's top the feet may already be at the start of a step and still count as a stomp. */
   stompTolerance: 6,
   knockbackX: 140,
   knockbackY: 200,
@@ -47,6 +49,8 @@ export const WORLD_LIMITS = {
   playerFallMargin: 32,
   /** Enemies this far below the map are removed. */
   enemyCleanupMargin: 64,
+  /** Hazard probes sit this many pixels inside the hitbox, so a diagonal touch doesn't count. */
+  hazardProbeInset: 1,
 } as const;
 
 export const HUD = {
@@ -69,6 +73,18 @@ export const DEPTH = {
   touchControls: 100,
 } as const;
 
+export type TouchAnchor = 'bottom-left' | 'bottom-right' | 'top-right';
+
+export interface TouchButtonSpec {
+  readonly action: Action;
+  readonly label: string;
+  readonly anchor: TouchAnchor;
+  /** Position counted inwards from the anchored corner: 0 is closest to it. */
+  readonly slot: number;
+  /** Radius as a fraction of `buttonRadius`. */
+  readonly size: number;
+}
+
 export const TOUCH_CONTROLS = {
   buttonRadius: 34,
   margin: 18,
@@ -76,7 +92,24 @@ export const TOUCH_CONTROLS = {
   activeAlpha: 0.6,
   /** Label font size relative to the button radius. */
   labelScale: 0.8,
-} as const;
+  /** Fingers tracked at once: move + jump + one spare for sliding between buttons. */
+  simultaneousTouches: 3,
+  buttons: [
+    { action: 'left', label: '<', anchor: 'bottom-left', slot: 0, size: 1 },
+    { action: 'right', label: '>', anchor: 'bottom-left', slot: 1, size: 1 },
+    { action: 'jump', label: 'A', anchor: 'bottom-right', slot: 0, size: 1 },
+    { action: 'pause', label: 'II', anchor: 'top-right', slot: 0, size: 0.5 },
+  ],
+} as const satisfies {
+  readonly buttons: readonly TouchButtonSpec[];
+  readonly [key: string]: unknown;
+};
+
+/**
+ * Widest canvas texture created at boot. Many phones refuse canvases wider than
+ * 4096 px, and a sprite strip is one frame wide per animation frame.
+ */
+export const MAX_TEXTURE_SIZE = 4096;
 
 export const PARALLAX = {
   farFactor: 0.1,

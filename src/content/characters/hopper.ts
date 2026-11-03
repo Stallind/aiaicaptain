@@ -60,7 +60,7 @@ export const hopper: EnemyDefinition = {
   scoreValue: 200,
   stompable: true,
   components: [
-    { type: 'patrol', turnAtLedges: false },
+    { type: 'patrol', turnAtLedges: true },
     { type: 'jumper', intervalMs: 1600 },
   ],
 };

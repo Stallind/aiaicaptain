@@ -47,12 +47,24 @@ export class CollisionSystem {
     this.checkFellOutOfLevel();
   }
 
+  /** Spikes hurt as soon as either bottom corner of the hitbox touches them. */
   private checkHazardTiles(time: number): void {
-    const { player, ground, hazardIndexes } = this.levelWorld;
-    const tile = ground.getTileAtWorldXY(player.x, player.feetY - 1);
-    if (!tile || !hazardIndexes.has(tile.index)) return;
+    const { player } = this.levelWorld;
+    const tile =
+      this.hazardAt(player.bodyLeft + WORLD_LIMITS.hazardProbeInset, player.feetY - 1) ??
+      this.hazardAt(player.bodyRight - WORLD_LIMITS.hazardProbeInset, player.feetY - 1);
     // Knock the player away from the centre of the hazard tile.
-    if (player.hurt(tile.getCenterX(), time)) this.callbacks.onPlayerDamaged();
+    if (tile && player.hurt(tile.getCenterX(), time)) this.callbacks.onPlayerDamaged();
+  }
+
+  /**
+   * The tile at a point, if it is a hazard. Probes use `feetY - 1`, one pixel
+   * above the feet, so they sample the tile the player stands *in* (where spikes
+   * are drawn) rather than the solid floor tile underneath.
+   */
+  private hazardAt(x: number, y: number): Phaser.Tilemaps.Tile | null {
+    const tile = this.levelWorld.ground.getTileAtWorldXY(x, y);
+    return tile && this.levelWorld.hazardIndexes.has(tile.index) ? tile : null;
   }
 
   private checkFellOutOfLevel(): void {
@@ -76,9 +88,9 @@ export class CollisionSystem {
     return (
       enemy.definition.stompable &&
       isStomp({
-        playerBottom: player.feetY,
-        playerVelocityY: player.velocityY,
-        enemyTop: enemy.bodyTop,
+        previousPlayerBottom: player.previousFeetY,
+        previousEnemyTop: enemy.previousBodyTop,
+        relativeVelocityY: player.velocityY - enemy.velocityY,
         tolerance: PLAYER_TUNING.stompTolerance,
       })
     );

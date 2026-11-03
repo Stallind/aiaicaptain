@@ -4,13 +4,30 @@ export interface KeyValueStore {
   setItem(key: string, value: string): void;
 }
 
+export interface ScoreResult {
+  /** The score beat the previous highscore. */
+  readonly isRecord: boolean;
+  /** The new highscore was written to persistent storage (false when storage is unavailable or full). */
+  readonly saved: boolean;
+}
+
 export interface GameStorage {
   getHighscore(): number;
-  /** Stores the score if it beats the highscore. Returns true if it did. */
-  submitScore(score: number): boolean;
+  submitScore(score: number): ScoreResult;
+  /** The last chosen character id, or null. Callers must still check that it exists. */
+  getSelectedCharacter(): string | null;
+  setSelectedCharacter(id: string): void;
 }
 
 const HIGHSCORE_KEY = 'aiaicaptain.highscore';
+const CHARACTER_KEY = 'aiaicaptain.character';
+const PROBE_KEY = 'aiaicaptain.probe';
+/** Ids are kebab-case; anything else in storage was not written by the game. */
+const CHARACTER_ID_PATTERN = /^[a-z0-9-]{1,40}$/;
+
+export function sanitizeCharacterId(value: unknown): string | null {
+  return typeof value === 'string' && CHARACTER_ID_PATTERN.test(value) ? value : null;
+}
 
 /**
  * Stored values are untrusted: the user can edit them, and on GitHub Pages every
@@ -22,15 +39,23 @@ export function sanitizeScore(value: unknown): number {
   return typeof number === 'number' && Number.isSafeInteger(number) && number >= 0 ? number : 0;
 }
 
-/** localStorage can be missing or throw (private mode, blocked cookies), so fall back to memory. */
+/**
+ * Wraps a backend in the game's rules. Create it once per game and share it
+ * (see storageOf in sharedStorage.ts): when localStorage is unavailable the
+ * fallback lives in memory, so a second instance would start empty.
+ */
 export function createGameStorage(backend: KeyValueStore = detectBackend()): GameStorage {
   return {
-    getHighscore: () => readScore(backend, HIGHSCORE_KEY),
+    getHighscore: () => readScore(backend),
     submitScore: (score) => {
       const clean = sanitizeScore(score);
-      if (clean <= readScore(backend, HIGHSCORE_KEY)) return false;
-      safeWrite(backend, HIGHSCORE_KEY, String(clean));
-      return true;
+      if (clean <= readScore(backend)) return { isRecord: false, saved: false };
+      return { isRecord: true, saved: safeWrite(backend, HIGHSCORE_KEY, String(clean)) };
+    },
+    getSelectedCharacter: () => sanitizeCharacterId(safeRead(backend, CHARACTER_KEY)),
+    setSelectedCharacter: (id) => {
+      const clean = sanitizeCharacterId(id);
+      if (clean) safeWrite(backend, CHARACTER_KEY, clean);
     },
   };
 }
@@ -45,30 +70,70 @@ export function createMemoryStore(): KeyValueStore {
   };
 }
 
+/**
+ * For storage that can be read but not written (full quota, read-only policy):
+ * keeps what's already saved readable, and holds new values in memory on top.
+ */
+export function createReadThroughStore(readable: KeyValueStore): KeyValueStore {
+  const overlay = createMemoryStore();
+  return {
+    getItem: (key) => overlay.getItem(key) ?? safeRead(readable, key),
+    setItem: (key, value) => overlay.setItem(key, value),
+  };
+}
+
+/** Picks the best available backend; never throws. */
+export function chooseBackend(storage: Storage | undefined): KeyValueStore {
+  if (!storage || !canRead(storage)) return createMemoryStore();
+  return canWrite(storage) ? storage : createReadThroughStore(storage);
+}
+
 function detectBackend(): KeyValueStore {
   try {
-    const storage = globalThis.localStorage;
-    const probe = `${HIGHSCORE_KEY}.probe`;
-    storage.setItem(probe, '1');
-    storage.removeItem(probe);
-    return storage;
+    return chooseBackend(globalThis.localStorage);
   } catch {
+    // Merely touching localStorage throws when cookies are blocked.
     return createMemoryStore();
   }
 }
 
-function readScore(backend: KeyValueStore, key: string): number {
+function canRead(storage: Storage): boolean {
   try {
-    return sanitizeScore(backend.getItem(key));
+    storage.getItem(PROBE_KEY);
+    return true;
   } catch {
-    return 0;
+    return false;
   }
 }
 
-function safeWrite(backend: KeyValueStore, key: string, value: string): void {
+function canWrite(storage: Storage): boolean {
+  try {
+    storage.setItem(PROBE_KEY, '1');
+    storage.removeItem(PROBE_KEY);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function readScore(backend: KeyValueStore): number {
+  return sanitizeScore(safeRead(backend, HIGHSCORE_KEY));
+}
+
+function safeRead(backend: KeyValueStore, key: string): string | null {
+  try {
+    return backend.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+/** Returns false when the value could not be stored (quota exceeded, storage revoked). */
+function safeWrite(backend: KeyValueStore, key: string, value: string): boolean {
   try {
     backend.setItem(key, value);
+    return true;
   } catch {
-    // Quota exceeded or storage revoked: losing a highscore is acceptable.
+    return false;
   }
 }
