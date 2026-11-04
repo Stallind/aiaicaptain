@@ -1,0 +1,190 @@
+import Phaser from 'phaser';
+import { SCORE, TIMING, WORLD_LIMITS } from '../config/constants';
+import { SCENE_KEYS } from '../config/scenes';
+import { ROTATE_PROMPT_QUERY } from '../config/strings';
+import {
+  firstLevelId,
+  getLevel,
+  getPlayerCharacter,
+  hasLevel,
+  isPlayerCharacter,
+  playerCharacterOf,
+} from '../content/registry';
+import type { LevelDefinition } from '../content/types';
+import { Player } from '../entities/Player';
+import { EventBus } from '../events/EventBus';
+import { createInput } from '../input/InputController';
+import type { InputController } from '../input/InputController';
+import { CameraRig } from '../systems/CameraRig';
+import { CollisionSystem } from '../systems/CollisionSystem';
+import { buildLevel } from '../systems/LevelBuilder';
+import type { LevelWorld } from '../systems/LevelBuilder';
+import { ParallaxBackground } from '../systems/ParallaxBackground';
+import { RenderInterpolation } from '../systems/RenderInterpolation';
+import { ScorePopups } from '../systems/ScorePopups';
+import { ScoreSystem } from '../systems/ScoreSystem';
+import { installSoundEffects } from '../systems/SoundEffects';
+import { startMusic } from '../systems/audio';
+import { parseGameSceneData } from './sceneData';
+import type { GameOverSceneData, GameSceneData, HudSceneData } from './sceneData';
+
+type PlayState = 'playing' | 'dying' | 'complete';
+
+/** Orchestrates one level: builds it, runs the systems each frame and handles the outcome. */
+export class GameScene extends Phaser.Scene {
+  private level!: LevelDefinition;
+  private playerId!: string;
+  private levelWorld!: LevelWorld;
+  private controls!: InputController;
+  private background!: ParallaxBackground;
+  private bus!: EventBus;
+  private score!: ScoreSystem;
+  private collisions!: CollisionSystem;
+  private state: PlayState = 'playing';
+  /** Same query as the "turn your device" overlay, so the game only pauses when the prompt is visible. */
+  private rotatePrompt!: MediaQueryList;
+
+  constructor() {
+    super(SCENE_KEYS.game);
+  }
+
+  create(rawData: unknown): void {
+    const data = parseGameSceneData(rawData, {
+      isKnownLevel: hasLevel,
+      fallbackLevelId: firstLevelId(),
+      isKnownPlayer: isPlayerCharacter,
+      fallbackPlayerId: playerCharacterOf(getLevel(firstLevelId())).id,
+    });
+    this.level = getLevel(data.levelId);
+    this.playerId = data.playerId;
+    this.state = 'playing';
+    this.physics.world.gravity.y = this.level.gravity;
+    this.background = new ParallaxBackground(this, this.level.background);
+    this.levelWorld = buildLevel(this, this.level, getPlayerCharacter(data.playerId));
+    this.setupBounds();
+    this.controls = createInput(this, { touchButtons: true });
+    this.rotatePrompt = window.matchMedia(ROTATE_PROMPT_QUERY);
+    this.bus = EventBus.of(this);
+    this.score = new ScoreSystem(this.bus, data.score);
+    new ScorePopups(this, this.bus);
+    installSoundEffects(this, this.bus);
+    const { player } = this.levelWorld;
+    player.on(Player.JUMPED, () => {
+      this.bus.emit('player:jumped', { jumpSound: player.definition.jumpSound });
+    });
+    startMusic(this);
+    this.collisions = new CollisionSystem(this, this.levelWorld, this.score, this.bus, {
+      onPlayerDamaged: () => this.onPlayerDamaged(false),
+      onPlayerFell: () => this.onPlayerDamaged(true),
+      onGoalReached: () => this.onGoalReached(),
+    });
+    this.launchHud();
+  }
+
+  override update(time: number, delta: number): void {
+    this.controls.update();
+    this.background.update(this.cameras.main);
+    if (this.shouldPause()) {
+      this.scene.launch(SCENE_KEYS.pause);
+      this.scene.pause();
+      return;
+    }
+    this.levelWorld.player.updateFrame(time, delta, this.controls);
+    this.updateEnemies(time, delta);
+    if (this.state === 'playing') this.collisions.update(time);
+  }
+
+  /** Pause on request, or automatically while the "turn your device" prompt is shown. */
+  private shouldPause(): boolean {
+    if (this.state !== 'playing') return false;
+    return this.controls.justPressed('pause') || this.rotatePrompt.matches;
+  }
+
+  private setupBounds(): void {
+    const { map, player, enemies } = this.levelWorld;
+    const width = map.widthInPixels;
+    const height = map.heightInPixels;
+    // No floor: falling into a gap must be possible.
+    const [left, right, top, bottom] = [true, true, true, false];
+    this.physics.world.setBounds(0, 0, width, height);
+    this.physics.world.setBoundsCollision(left, right, top, bottom);
+    player.setCollideWorldBounds(true);
+    for (const enemy of enemies) enemy.setCollideWorldBounds(true);
+
+    const camera = this.cameras.main;
+    camera.setBounds(0, 0, width, height);
+    const rig = new CameraRig(this, player);
+    // After the rig, so the camera focus is interpolated from its final per-step value.
+    const smoothing = new RenderInterpolation(this);
+    smoothing.track(rig.focusPoint);
+    smoothing.trackSprite(player);
+    for (const enemy of enemies) smoothing.trackSprite(enemy);
+  }
+
+  private launchHud(): void {
+    const { health } = this.levelWorld.player;
+    const data: HudSceneData = {
+      levelName: this.level.name,
+      score: this.score.score,
+      health: health.value,
+      maxHealth: health.max,
+    };
+    this.scene.launch(SCENE_KEYS.hud, data);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scene.stop(SCENE_KEYS.hud));
+  }
+
+  private updateEnemies(time: number, delta: number): void {
+    const limit = this.levelWorld.map.heightInPixels + WORLD_LIMITS.enemyCleanupMargin;
+    for (const enemy of this.levelWorld.enemies) {
+      if (!enemy.active || enemy.health.isDead) continue;
+      if (enemy.y > limit) enemy.destroy();
+      else enemy.updateBehaviors(time, delta);
+    }
+  }
+
+  private onPlayerDamaged(fell: boolean): void {
+    const { health } = this.levelWorld.player;
+    this.bus.emit('player:hurt', { fell });
+    this.bus.emit('health:changed', { health: health.value, max: health.max });
+    if (health.isDead && this.state === 'playing') this.loseLevel();
+  }
+
+  private loseLevel(): void {
+    this.state = 'dying';
+    this.bus.emit('player:died', {});
+    this.levelWorld.player.die();
+    this.cameras.main.stopFollow();
+    this.time.delayedCall(TIMING.deathDelayMs, () => {
+      const data: GameOverSceneData = {
+        won: false,
+        score: this.score.score,
+        levelName: this.level.name,
+      };
+      this.scene.start(SCENE_KEYS.gameOver, data);
+    });
+  }
+
+  private onGoalReached(): void {
+    if (this.state !== 'playing') return;
+    this.state = 'complete';
+    this.levelWorld.player.freeze();
+    this.score.add(SCORE.levelCompleteBonus);
+    this.bus.emit('level:completed', { levelId: this.level.id });
+    this.time.delayedCall(TIMING.levelCompleteDelayMs, () => this.advance());
+  }
+
+  private advance(): void {
+    const next = this.level.nextLevel;
+    if (next === null) {
+      const data: GameOverSceneData = {
+        won: true,
+        score: this.score.score,
+        levelName: this.level.name,
+      };
+      this.scene.start(SCENE_KEYS.gameOver, data);
+      return;
+    }
+    const data: GameSceneData = { levelId: next, score: this.score.score, playerId: this.playerId };
+    this.scene.restart(data);
+  }
+}

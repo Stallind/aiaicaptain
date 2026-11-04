@@ -51,7 +51,7 @@ src/
   systems/             # tvärgående logik: input, kollisioner, poäng, ljud
   content/
     characters/        # en fil per figur: data-definition + sprite-data
-    levels/            # en fil per bana (Tiled-kompatibel JSON)
+    levels/            # en fil per bana (ASCII-layout, görs om till Tiled-JSON vid laddning)
     registry.ts        # registrerar alla figurer och banor
   graphics/            # sprite-generator: pixeldata -> Phaser-texturer
   input/               # abstraktion över tangentbord, touch och gamepad
@@ -66,8 +66,8 @@ public/                # statiska filer (favicon, manifest)
 
 ### Datadrivet innehåll
 - **Figurer och banor är data, inte kod.** En ny fiende eller bana ska kunna läggas till genom att skapa en ny fil i `src/content/` och registrera den i `registry.ts` – utan ändringar i scener eller motorkod.
-- Varje figur beskrivs av en typad `CharacterDefinition` (hastighet, hopphöjd, hälsa, beteendekomponenter, sprite-data, animationer).
-- Varje bana beskrivs av en typad `LevelDefinition` (tilemap, gravitation, bakgrund, spawnpunkter, mål). Gravitationen är per bana – låg gravitation på månen, hög på gasjätten.
+- Varje figur beskrivs av en typad `CharacterDefinition` (hastighet, hopphöjd, hälsa, beteendekomponenter, sprite-data, animationer). Typen är en union per `kind` (spelare, fiende, samlarobjekt, mål) så att varje sort bara har de fält som betyder något för den.
+- Varje bana beskrivs av en typad `LevelDefinition` (ASCII-layout, gravitation, bakgrund, spawnpunkter, mål). Layouten konverteras till Tiled-kompatibel JSON vid laddning. Gravitationen är per bana – låg gravitation på månen, hög på gasjätten.
 
 ### Komposition före arv
 - Entiteter byggs av små komponenter (`Health`, `Patrol`, `Jumper`, `Shooter` ...) i stället för djupa arvshierarkier.
