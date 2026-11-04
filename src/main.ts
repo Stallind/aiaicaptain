@@ -8,6 +8,7 @@ import { GameScene } from './scenes/GameScene';
 import { HudScene } from './scenes/HudScene';
 import { MenuScene } from './scenes/MenuScene';
 import { PauseScene } from './scenes/PauseScene';
+import { SettingsScene } from './scenes/SettingsScene';
 import { installErrorOverlay } from './systems/errorOverlay';
 import { applyThemeColors, installRotatePrompt } from './systems/pageChrome';
 
@@ -40,9 +41,13 @@ const game = new Phaser.Game({
     HudScene,
     PauseScene,
     GameOverScene,
+    SettingsScene,
   ],
 });
 
 // The game boots on the next frame, so boot errors are still caught. Stopping the
-// loop keeps a crashed game from running on (and later playing sound) behind the overlay.
-installErrorOverlay(() => game.loop.sleep());
+// loop and the sound keeps a crashed game from running on behind the overlay.
+installErrorOverlay(() => {
+  game.loop.sleep();
+  game.sound.stopAll();
+});

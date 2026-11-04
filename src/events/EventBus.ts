@@ -5,6 +5,14 @@ export interface GameEvents {
   'health:changed': { readonly health: number; readonly max: number };
   /** Points were earned at a world position; used for score popups. */
   'points:awarded': { readonly points: number; readonly x: number; readonly y: number };
+  /** The player lost health or fell out of the level. */
+  'player:hurt': { readonly fell: boolean };
+  'level:completed': { readonly levelId: string };
+  /** The player lost the last life. */
+  'player:died': Record<string, never>;
+  'player:jumped': { readonly jumpSound: string };
+  'enemy:stomped': { readonly enemyId: string };
+  'item:collected': { readonly itemId: string };
 }
 
 export type GameEventName = keyof GameEvents;

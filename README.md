@@ -6,13 +6,16 @@ Ett 2D-plattformsspel i rymden som spelas direkt i webbläsaren, på dator och m
 
 ## Vad det gör
 
-Du väljer kapten, Oh Scarrr eller AI Captain, och tar dig igenom tre banor: ett asteroidbälte, en månbas och en gasjätte, var och en med sin egen gravitation. Du hoppar mellan plattformar, samlar stjärnor och energiceller, besegrar utomjordingar genom att landa på dem och når warpporten i slutet av varje bana. Spelet styrs med tangentbord, handkontroll eller knappar på skärmen, och sparar ditt highscore och senast valda kapten i webbläsaren.
+Du väljer kapten, AI Captain, Oh Scarrr eller Spaiceman, och tar dig igenom tre banor: ett asteroidbälte, en månbas och en gasjätte, var och en med sin egen gravitation. Du hoppar mellan plattformar, samlar stjärnor och energiceller, besegrar utomjordingar genom att landa på dem och når warpporten i slutet av varje bana. Till det spelas ett eget 8-bitarssoundtrack, ljud när du landar på en fiende och plockar stjärnor, ett eget hoppljud för varje kapten, ett "Ouch!" när du skadas, en sorglig slinga när du dör och en fanfar när du klarar en bana. Spelet styrs med tangentbord, handkontroll eller knappar på skärmen, och sparar ditt highscore, senast valda kapten och dina ljudinställningar i webbläsaren.
 
-| Handling        | Tangentbord    | Handkontroll            | Pekskärm |
-| --------------- | -------------- | ----------------------- | -------- |
-| Gå              | ← → eller A D  | Styrkors / vänster spak | ◀ ▶      |
-| Hoppa           | Space, ↑, W, Z | A                       | A        |
-| Paus / tillbaka | Esc eller P    | Start                   | II       |
+| Handling                    | Tangentbord    | Handkontroll            | Pekskärm                 |
+| --------------------------- | -------------- | ----------------------- | ------------------------ |
+| Gå                          | ← → eller A D  | Styrkors / vänster spak | ◀ ▶                      |
+| Hoppa                       | Space, ↑, W, Z | A                       | A                        |
+| Välj i menyer               | Enter          | A                       | Tryck på valet           |
+| Paus / tillbaka             | Esc eller P    | Start                   | II                       |
+| Byt kapten (i pausen)       | R              | Back / Select           | Knappen "Change captain" |
+| Ljudinställningar (i menyn) | P              | Y                       | Knappen "SOUND"          |
 
 ## Kom igång
 
@@ -49,13 +52,16 @@ Ingen konfiguration behövs för att köra spelet. Det finns ingen `.env`-fil oc
 
 Spelets inställningar är vanlig kod i [src/config/](src/config/), och ändras där:
 
-| Fil                                     | Innehåll                                                              |
-| --------------------------------------- | --------------------------------------------------------------------- |
-| [game.ts](src/config/game.ts)           | Upplösning (640×360) och fysikens bildfrekvens                        |
-| [constants.ts](src/config/constants.ts) | Hoppkänsla, skadeimmunitet, kamera, poäng, pekskärmsknapparnas layout |
-| [input.ts](src/config/input.ts)         | Tangent- och handkontrollsbindningar                                  |
-| [ui.ts](src/config/ui.ts)               | Typsnittsstorlekar och skärmlayouter                                  |
-| [strings.ts](src/config/strings.ts)     | Gemensamma texter, till exempel felskärmen och "vrid enheten"         |
+| Fil                                     | Innehåll                                                                |
+| --------------------------------------- | ----------------------------------------------------------------------- |
+| [game.ts](src/config/game.ts)           | Upplösning (640×360) och fysikens bildfrekvens                          |
+| [constants.ts](src/config/constants.ts) | Hoppkänsla, skadeimmunitet, kamera, poäng, pekskärmsknapparnas layout   |
+| [input.ts](src/config/input.ts)         | Tangent- och handkontrollsbindningar                                    |
+| [ui.ts](src/config/ui.ts)               | Typsnittsstorlekar och skärmlayouter                                    |
+| [audio.ts](src/config/audio.ts)         | Standardvolymer (musik 15 %, effekter 30 %), samplingsfrekvens, trummor |
+| [strings.ts](src/config/strings.ts)     | Gemensamma texter, till exempel felskärmen och "vrid enheten"           |
+
+**Ljud** ställs in i spelet under _SOUND_ i menyn: reglage för musik och effekter, och "Sound: OFF" för helt ljudlöst. Valet sparas i webbläsaren.
 
 Nya figurer och banor läggs till som filer i [src/content/](src/content/) och registreras i [registry.ts](src/content/registry.ts). Hur det går till står i [implementation.md](implementation.md#how-to-extend).
 
@@ -92,6 +98,7 @@ aiaicaptain/
 │   ├── systems/         # banbygge, kollisioner, poäng, lagring, felhantering
 │   ├── input/           # tangentbord, handkontroll, pekskärm -> handlingar
 │   ├── graphics/        # färgpalett, pixeldata -> texturer, stjärnhimmel
+│   ├── audio/           # notdata -> ljud: syntes av melodi, trummor och röst
 │   ├── events/          # typad händelsebuss
 │   └── utils/           # rena hjälpfunktioner (testas utan Phaser)
 ├── tests/               # Vitest-tester, speglar src/
@@ -113,12 +120,13 @@ Mer detaljer finns i [implementation.md](implementation.md), och projektets regl
 | Tester      | Vitest                          | Samma konfiguration som Vite, snabbt, bra TypeScript-stöd                                      |
 | Kodkvalitet | ESLint + Prettier               | Konsekvent stil och tidig felupptäckt                                                          |
 | Grafik      | Pixel art som data i koden      | Inga bildfiler och inga licensfrågor; texturerna skapas när spelet startar                     |
+| Ljud        | Web Audio, syntes från notdata  | Inga ljudfiler och inga licensfrågor; musik och effekter räknas fram när spelet startar        |
 | Lagring     | `localStorage`                  | Highscore och vald kapten utan backend; tål att lagringen saknas eller är full                 |
 | Publicering | GitHub Pages via GitHub Actions | Gratis statisk hosting som publiceras automatiskt från `main`                                  |
 
 ## Begränsningar
 
-- **Bara tre banor och två spelbara figurer.** Det finns inget ljud, inga skjutande fiender, inga rörliga plattformar och inga partikeleffekter.
+- **Bara tre banor och tre spelbara figurer.** Det finns inga skjutande fiender, inga rörliga plattformar och inga partikeleffekter.
 - **Inte provat på riktiga mobiler.** Spelet är testat i Chrome, både på dator och med emulerad mobil och pekskärm. Prestanda och knappstorlekar på riktiga telefoner är inte verifierade.
 - **Inga inställningar i spelet.** Kontroller och texter ändras bara i koden. Gränssnittet finns bara på engelska.
 - **Highscore sparas bara lokalt** i den webbläsare du spelar i. På GitHub Pages delar alla projekt från samma konto lagringsutrymme, så värdena kan inte litas på, och spelet ignorerar ogiltiga värden.

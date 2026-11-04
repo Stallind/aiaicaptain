@@ -1,4 +1,18 @@
-export const ACTIONS = ['left', 'right', 'jump', 'action', 'pause'] as const;
+/**
+ * Abstract actions. `up`/`down` move through menu rows, `quit` leaves the paused
+ * level for character select, `settings` opens the sound settings from the menu.
+ */
+export const ACTIONS = [
+  'left',
+  'right',
+  'jump',
+  'action',
+  'pause',
+  'up',
+  'down',
+  'quit',
+  'settings',
+] as const;
 export type Action = (typeof ACTIONS)[number];
 
 export interface InputSource {
@@ -9,7 +23,17 @@ export interface InputSource {
 }
 
 function emptyRecord(): Record<Action, boolean> {
-  return { left: false, right: false, jump: false, action: false, pause: false };
+  return {
+    left: false,
+    right: false,
+    jump: false,
+    action: false,
+    pause: false,
+    up: false,
+    down: false,
+    quit: false,
+    settings: false,
+  };
 }
 
 /** Tracks held and just-pressed state per action. Free of Phaser so it can be unit-tested. */

@@ -60,6 +60,8 @@ export interface PlayerDefinition extends BaseCharacterDefinition {
   readonly displayName: string;
   readonly tagline: string;
   readonly portrait: PortraitData;
+  /** Id of the sound played on every jump; registered in SOUNDS in registry.ts. */
+  readonly jumpSound: string;
 }
 
 export interface EnemyDefinition extends BaseCharacterDefinition {

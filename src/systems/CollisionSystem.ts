@@ -99,12 +99,14 @@ export class CollisionSystem {
   private stomp(enemy: Enemy): void {
     const points = this.combo.stomp(enemy.definition.scoreValue);
     enemy.defeat();
+    this.bus.emit('enemy:stomped', { enemyId: enemy.definition.id });
     this.levelWorld.player.bounce();
     this.award(points, enemy.x, enemy.y - enemy.height);
   }
 
   private onCollect(item: Collectible): void {
     item.collect();
+    this.bus.emit('item:collected', { itemId: item.definition.id });
     this.award(item.definition.scoreValue, item.x, item.y - item.height);
   }
 

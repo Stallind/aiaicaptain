@@ -1,3 +1,7 @@
+import { AUDIO } from '../config/audio';
+import { parseAudioSettings } from '../utils/audioSettings';
+import type { AudioSettings } from '../utils/audioSettings';
+
 /** The part of the Web Storage API the game needs; lets tests pass a fake. */
 export interface KeyValueStore {
   getItem(key: string): string | null;
@@ -17,10 +21,20 @@ export interface GameStorage {
   /** The last chosen character id, or null. Callers must still check that it exists. */
   getSelectedCharacter(): string | null;
   setSelectedCharacter(id: string): void;
+  /** Saved sound settings, or the defaults from config/audio.ts. */
+  getAudioSettings(): AudioSettings;
+  setAudioSettings(settings: AudioSettings): void;
 }
+
+export const DEFAULT_AUDIO_SETTINGS: AudioSettings = {
+  music: AUDIO.musicVolume,
+  effects: AUDIO.effectsVolume,
+  muted: false,
+};
 
 const HIGHSCORE_KEY = 'aiaicaptain.highscore';
 const CHARACTER_KEY = 'aiaicaptain.character';
+const AUDIO_KEY = 'aiaicaptain.audio';
 const PROBE_KEY = 'aiaicaptain.probe';
 /** Ids are kebab-case; anything else in storage was not written by the game. */
 const CHARACTER_ID_PATTERN = /^[a-z0-9-]{1,40}$/;
@@ -56,6 +70,12 @@ export function createGameStorage(backend: KeyValueStore = detectBackend()): Gam
     setSelectedCharacter: (id) => {
       const clean = sanitizeCharacterId(id);
       if (clean) safeWrite(backend, CHARACTER_KEY, clean);
+    },
+    getAudioSettings: () =>
+      parseAudioSettings(safeRead(backend, AUDIO_KEY), DEFAULT_AUDIO_SETTINGS),
+    setAudioSettings: (settings) => {
+      const clean = parseAudioSettings(JSON.stringify(settings), DEFAULT_AUDIO_SETTINGS);
+      safeWrite(backend, AUDIO_KEY, JSON.stringify(clean));
     },
   };
 }

@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { CAMERA, SCORE, TIMING, WORLD_LIMITS } from '../config/constants';
+import { SCORE, TIMING, WORLD_LIMITS } from '../config/constants';
 import { SCENE_KEYS } from '../config/scenes';
 import { ROTATE_PROMPT_QUERY } from '../config/strings';
 import {
@@ -11,15 +11,20 @@ import {
   playerCharacterOf,
 } from '../content/registry';
 import type { LevelDefinition } from '../content/types';
+import { Player } from '../entities/Player';
 import { EventBus } from '../events/EventBus';
 import { createInput } from '../input/InputController';
 import type { InputController } from '../input/InputController';
+import { CameraRig } from '../systems/CameraRig';
 import { CollisionSystem } from '../systems/CollisionSystem';
 import { buildLevel } from '../systems/LevelBuilder';
 import type { LevelWorld } from '../systems/LevelBuilder';
 import { ParallaxBackground } from '../systems/ParallaxBackground';
+import { RenderInterpolation } from '../systems/RenderInterpolation';
 import { ScorePopups } from '../systems/ScorePopups';
 import { ScoreSystem } from '../systems/ScoreSystem';
+import { installSoundEffects } from '../systems/SoundEffects';
+import { startMusic } from '../systems/audio';
 import { parseGameSceneData } from './sceneData';
 import type { GameOverSceneData, GameSceneData, HudSceneData } from './sceneData';
 
@@ -62,9 +67,15 @@ export class GameScene extends Phaser.Scene {
     this.bus = EventBus.of(this);
     this.score = new ScoreSystem(this.bus, data.score);
     new ScorePopups(this, this.bus);
+    installSoundEffects(this, this.bus);
+    const { player } = this.levelWorld;
+    player.on(Player.JUMPED, () => {
+      this.bus.emit('player:jumped', { jumpSound: player.definition.jumpSound });
+    });
+    startMusic(this);
     this.collisions = new CollisionSystem(this, this.levelWorld, this.score, this.bus, {
-      onPlayerDamaged: () => this.onPlayerDamaged(),
-      onPlayerFell: () => this.onPlayerDamaged(),
+      onPlayerDamaged: () => this.onPlayerDamaged(false),
+      onPlayerFell: () => this.onPlayerDamaged(true),
       onGoalReached: () => this.onGoalReached(),
     });
     this.launchHud();
@@ -102,8 +113,12 @@ export class GameScene extends Phaser.Scene {
 
     const camera = this.cameras.main;
     camera.setBounds(0, 0, width, height);
-    camera.startFollow(player, true, CAMERA.lerp, CAMERA.lerp);
-    camera.setDeadzone(CAMERA.deadzoneWidth, CAMERA.deadzoneHeight);
+    const rig = new CameraRig(this, player);
+    // After the rig, so the camera focus is interpolated from its final per-step value.
+    const smoothing = new RenderInterpolation(this);
+    smoothing.track(rig.focusPoint);
+    smoothing.trackSprite(player);
+    for (const enemy of enemies) smoothing.trackSprite(enemy);
   }
 
   private launchHud(): void {
@@ -127,14 +142,16 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  private onPlayerDamaged(): void {
+  private onPlayerDamaged(fell: boolean): void {
     const { health } = this.levelWorld.player;
+    this.bus.emit('player:hurt', { fell });
     this.bus.emit('health:changed', { health: health.value, max: health.max });
     if (health.isDead && this.state === 'playing') this.loseLevel();
   }
 
   private loseLevel(): void {
     this.state = 'dying';
+    this.bus.emit('player:died', {});
     this.levelWorld.player.die();
     this.cameras.main.stopFollow();
     this.time.delayedCall(TIMING.deathDelayMs, () => {
@@ -152,6 +169,7 @@ export class GameScene extends Phaser.Scene {
     this.state = 'complete';
     this.levelWorld.player.freeze();
     this.score.add(SCORE.levelCompleteBonus);
+    this.bus.emit('level:completed', { levelId: this.level.id });
     this.time.delayedCall(TIMING.levelCompleteDelayMs, () => this.advance());
   }
 

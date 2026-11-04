@@ -15,6 +15,9 @@ interface PlayerAnimations {
 }
 
 export class Player extends Phaser.Physics.Arcade.Sprite {
+  /** Emitted on the player itself whenever it takes off (not on stomp bounces). */
+  static readonly JUMPED = 'jumped';
+
   readonly health: Health;
   private readonly jump = new JumpController(PLAYER_TUNING);
   private readonly physicsBody: Phaser.Physics.Arcade.Body;
@@ -143,6 +146,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     );
     if (decision === 'jump') {
       this.physicsBody.setVelocityY(-this.definition.stats.jumpVelocity);
+      this.emit(Player.JUMPED);
     } else if (decision === 'shortenJump' && this.physicsBody.velocity.y < 0) {
       this.physicsBody.setVelocityY(this.physicsBody.velocity.y * PLAYER_TUNING.jumpCutFactor);
     }

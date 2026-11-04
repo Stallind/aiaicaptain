@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   CHARACTERS,
   contentErrors,
+  soundErrors,
   LEVELS,
   firstLevelId,
   getCharacter,
@@ -17,6 +18,7 @@ import { TILES, TILE_CHARS, TILE_PALETTE } from '../../src/content/tiles';
 import { HEART_EMPTY_FRAME, HEART_FRAME, UI_PALETTE } from '../../src/content/hudIcons';
 import { MAX_TEXTURE_SIZE, TILE_SIZE } from '../../src/config/constants';
 import { CHARACTER_SELECT_LAYOUT } from '../../src/config/ui';
+import { AUDIO } from '../../src/config/audio';
 import { validateFrame, validateSprite } from '../../src/graphics/parseSprite';
 import { validateLevel } from '../../src/utils/validateLevel';
 
@@ -136,5 +138,11 @@ describe('content checked at boot', () => {
   it('explains unknown ids and where to register them', () => {
     expect(() => getCharacter('nope')).toThrow(/Known: .*ai-captain.*src\/content\/registry\.ts/);
     expect(() => getLevel('nope')).toThrow(/Register it in LEVELS/);
+  });
+});
+
+describe('sounds', () => {
+  it('are all valid, and every sound the game plays is registered', () => {
+    expect(soundErrors(AUDIO.sampleRate)).toEqual([]);
   });
 });

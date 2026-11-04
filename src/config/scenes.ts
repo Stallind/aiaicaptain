@@ -6,6 +6,7 @@ export const SCENE_KEYS = {
   hud: 'HudScene',
   pause: 'PauseScene',
   gameOver: 'GameOverScene',
+  settings: 'SettingsScene',
 } as const;
 
 export const TEXTURE_KEYS = {

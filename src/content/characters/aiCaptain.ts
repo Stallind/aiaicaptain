@@ -14,16 +14,31 @@ const body = (head: string, torso: string, legs: string, legColours: string): Sp
     colours: ['.cc.', 'GggG', legColours],
   });
 
+// A head-and-shoulders bust, still only digits: cap, face with ears, the two
+// 0s are his eyes, a 0000 smile, a neck and uniform shoulders with epaulettes.
 const portraitGrid = renderGlyphGrid({
   digits: [
-    '.101101.', // captain's hat
-    '11111111', // hat brim
-    '10100101', // eyes
-    '01011010', // nose
-    '.100001.', // grin
-    '..1001..', // chin
+    '....1111....', // cap crown
+    '...110011...', // cap band with badge
+    '..11111111..', // brim
+    '..10111101..', // hair at the temples
+    '.1101111011.', // ears and eyes
+    '..11111111..', // cheeks and nose
+    '...100001...', // smile
+    '....1111....', // neck
+    '111111111111', // shoulders
   ],
-  colours: ['.yyyyyy.', 'wwwwwwww', 'ggCggCgg', 'gggccggg', '.gwwwwg.', '..GGGG..'],
+  colours: [
+    '....yyyy....',
+    '...wwyywww..',
+    '..GGGGGGGG..',
+    '..GggggggG..',
+    '.GgCggggCgG.',
+    '..gggccggg..',
+    '...gwwwwg...',
+    '....GGGG....',
+    'yBBBBccBBBBy',
+  ],
 });
 
 const palette = {
@@ -34,6 +49,7 @@ const palette = {
   G: COLORS.greenDark,
   w: COLORS.white,
   y: COLORS.gold,
+  B: COLORS.blue,
 } as const;
 
 export const aiCaptain: PlayerDefinition = {
@@ -57,6 +73,7 @@ export const aiCaptain: PlayerDefinition = {
     },
   },
   portrait: { palette, frame: portraitGrid },
+  jumpSound: 'jump-bits',
   // The digit grid leaves an empty row at the bottom; the hitbox ends on the last inked row.
   body: { width: 10, height: 15, offsetX: 3, offsetY: 2 },
   stats: { speed: 165, jumpVelocity: 370, health: 3 },

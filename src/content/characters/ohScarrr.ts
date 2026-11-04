@@ -94,6 +94,7 @@ export const ohScarrr: PlayerDefinition = {
       'ttttTTTTTTttuuuuuuuutTTTTTTTTTTt',
     ],
   },
+  jumpSound: 'jump-hup',
   body: { width: 10, height: 15, offsetX: 3, offsetY: 1 },
   stats: { speed: 140, jumpVelocity: 390, health: 4 },
 };

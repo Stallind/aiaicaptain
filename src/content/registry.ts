@@ -1,9 +1,24 @@
+import { validateSound } from '../audio/validateSound';
+import type { SoundDefinition } from '../audio/types';
+import { SOUND_IDS } from '../config/audio';
+import {
+  death,
+  jumpBits,
+  jumpHup,
+  jumpJet,
+  levelComplete,
+  ouch,
+  pickup,
+  stomp,
+} from './audio/effects';
+import { theme } from './audio/theme';
 import { aiCaptain } from './characters/aiCaptain';
 import { blobAlien } from './characters/blobAlien';
 import { hopper } from './characters/hopper';
 import { ohScarrr } from './characters/ohScarrr';
 import { energyCell, starPickup } from './characters/pickups';
 import { spaceJelly } from './characters/spaceJelly';
+import { spaiceman } from './characters/spaiceman';
 import { warpGate } from './characters/warpGate';
 import { asteroidBelt } from './levels/01-asteroidBelt';
 import { lunarOutpost } from './levels/02-lunarOutpost';
@@ -19,6 +34,7 @@ import type { LevelValidationContext } from '../utils/validateLevel';
 export const CHARACTERS: readonly CharacterDefinition[] = [
   aiCaptain,
   ohScarrr,
+  spaiceman,
   blobAlien,
   hopper,
   spaceJelly,
@@ -29,6 +45,19 @@ export const CHARACTERS: readonly CharacterDefinition[] = [
 
 /** The first entry is where a new game starts. */
 export const LEVELS: readonly LevelDefinition[] = [asteroidBelt, lunarOutpost, gasGiantRig];
+
+/** Music and sound effects, rendered from note data at boot. */
+export const SOUNDS: readonly SoundDefinition[] = [
+  theme,
+  ouch,
+  levelComplete,
+  stomp,
+  pickup,
+  death,
+  jumpBits,
+  jumpHup,
+  jumpJet,
+];
 
 const charactersById: ReadonlyMap<string, CharacterDefinition> = new Map(
   CHARACTERS.map((c) => [c.id, c]),
@@ -113,6 +142,28 @@ export function contentErrors(limits: CharacterLimits): string[] {
   for (const character of CHARACTERS) {
     for (const error of validateCharacter(character, limits)) {
       errors.push(`Character "${character.id}": ${error}`);
+    }
+  }
+  return errors;
+}
+
+/** Problems with the registered sounds, and with the ids SOUND_IDS in config/audio.ts refers to. */
+export function soundErrors(sampleRate: number): string[] {
+  const ids = new Set(SOUNDS.map((sound) => sound.id));
+  const errors = SOUNDS.flatMap((sound) => validateSound(sound, sampleRate));
+  if (ids.size !== SOUNDS.length) errors.push('Two sounds share the same id');
+  for (const player of PLAYER_CHARACTERS) {
+    if (!ids.has(player.jumpSound)) {
+      errors.push(
+        `Character "${player.id}": jumpSound "${player.jumpSound}" is not in SOUNDS. Known: ${[...ids].join(', ')}.`,
+      );
+    }
+  }
+  for (const [use, id] of Object.entries(SOUND_IDS)) {
+    if (!ids.has(id)) {
+      errors.push(
+        `SOUND_IDS.${use} is "${id}", but no sound has that id. Known: ${[...ids].join(', ')}.`,
+      );
     }
   }
   return errors;

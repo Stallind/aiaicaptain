@@ -18,6 +18,7 @@ const player: PlayerDefinition = {
   displayName: 'Hero',
   tagline: 'Brave',
   portrait: { palette: sprite.palette, frame: ['x'] },
+  jumpSound: 'jump',
 };
 
 const enemy: EnemyDefinition = {

@@ -1,19 +1,24 @@
 import Phaser from 'phaser';
 import { SCENE_KEYS } from '../config/scenes';
-import { FONT_SIZE, MENU_LAYOUT } from '../config/ui';
+import { CORNER_BUTTON, FONT_SIZE, MENU_LAYOUT } from '../config/ui';
 import { MENU_BACKGROUND } from '../content/menu';
 import { PLAYER_CHARACTERS, isPlayerCharacter } from '../content/registry';
 import { COLORS } from '../graphics/palette';
 import { playIfExists } from '../entities/physicsSprite';
 import { ParallaxBackground } from '../systems/ParallaxBackground';
+import { startMusic } from '../systems/audio';
 import { storageOf } from '../systems/sharedStorage';
+import { createInput } from '../input/InputController';
+import type { InputController } from '../input/InputController';
 import { keysFor } from '../input/keyNames';
 import { ContinuePrompt } from './ContinuePrompt';
-import { addCenteredText, addPrompt } from './textHelpers';
+import { addCenteredText, addPrompt, addTextButton } from './textHelpers';
 
 export class MenuScene extends Phaser.Scene {
   private background?: ParallaxBackground;
   private prompt?: ContinuePrompt;
+  private controls?: InputController;
+  private settingsRequested = false;
 
   constructor() {
     super(SCENE_KEYS.menu);
@@ -21,6 +26,8 @@ export class MenuScene extends Phaser.Scene {
 
   create(): void {
     this.background = new ParallaxBackground(this, MENU_BACKGROUND);
+    this.settingsRequested = false;
+    startMusic(this);
     const { width, height } = this.scale.gameSize;
     const touch = this.sys.game.device.input.touch;
     const titleY = height * MENU_LAYOUT.titleY;
@@ -45,7 +52,7 @@ export class MenuScene extends Phaser.Scene {
     addPrompt(this, height * MENU_LAYOUT.promptY, startHint);
     const controls = touch
       ? 'Use the on-screen buttons'
-      : `Move: ${keysFor('left')} and ${keysFor('right')}    Jump: ${keysFor('jump')}    Pause: ${keysFor('pause', 1)}`;
+      : `Move: ${keysFor('left')} and ${keysFor('right')}    Jump: ${keysFor('jump')}    Pause: ${keysFor('pause', 1)}    Sound: ${keysFor('settings', 1)}`;
     addCenteredText(this, height * MENU_LAYOUT.controlsY, controls, FONT_SIZE.small, COLORS.steel);
     const highscore = `Highscore ${storageOf(this).getHighscore()}`;
     addCenteredText(
@@ -56,13 +63,28 @@ export class MenuScene extends Phaser.Scene {
       COLORS.yellow,
     );
 
+    this.addSoundButton();
     this.prompt = new ContinuePrompt(this);
+    this.controls = createInput(this, { touchButtons: false });
   }
 
   override update(time: number): void {
     this.cameras.main.scrollX = time * MENU_LAYOUT.scrollSpeed;
     this.background?.update(this.cameras.main);
-    if (this.prompt?.update()) this.scene.start(SCENE_KEYS.characterSelect);
+    this.controls?.update();
+    // Before the prompt: tapping the SOUND button also counts as "tap anywhere to start".
+    if (this.settingsRequested || this.controls?.justPressed('settings')) {
+      this.scene.start(SCENE_KEYS.settings);
+    } else if (this.prompt?.update()) {
+      this.scene.start(SCENE_KEYS.characterSelect);
+    }
+  }
+
+  private addSoundButton(): void {
+    const { width } = this.scale.gameSize;
+    addTextButton(this, width - CORNER_BUTTON.margin, CORNER_BUTTON.margin, 'SOUND', () => {
+      this.settingsRequested = true;
+    }).setOrigin(1, 0);
   }
 
   /** Shows the character picked last time, or the first one on a first visit. */

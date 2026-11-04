@@ -127,3 +127,26 @@ describe('selected character', () => {
     expect(store.getItem('aiaicaptain.character')).toBe('<script>');
   });
 });
+
+describe('audio settings', () => {
+  it('starts with the defaults: music at 15 %, effects at 30 %, sound on', () => {
+    const settings = createGameStorage(createMemoryStore()).getAudioSettings();
+    expect(settings).toEqual({ music: 0.15, effects: 0.3, muted: false });
+  });
+
+  it('remembers volumes and "no sound"', () => {
+    const backend = createMemoryStore();
+    createGameStorage(backend).setAudioSettings({ music: 0.2, effects: 0, muted: true });
+    expect(createGameStorage(backend).getAudioSettings()).toEqual({
+      music: 0.2,
+      effects: 0,
+      muted: true,
+    });
+  });
+
+  it('survives a backend that throws', () => {
+    const storage = createGameStorage({ getItem: throwing, setItem: throwing });
+    expect(() => storage.setAudioSettings({ music: 1, effects: 1, muted: false })).not.toThrow();
+    expect(storage.getAudioSettings().music).toBe(0.15);
+  });
+});

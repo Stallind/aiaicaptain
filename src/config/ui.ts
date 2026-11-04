@@ -31,6 +31,7 @@ export const MENU_LAYOUT = {
 export const PAUSE_LAYOUT = {
   titleY: 0.4,
   promptY: 0.55,
+  quitY: 0.65,
   overlayAlpha: 0.6,
 } as const;
 
@@ -79,4 +80,30 @@ export const CHARACTER_SELECT_LAYOUT = {
   borderWidth: 2,
   dimmedAlpha: 0.55,
   promptY: 0.88,
+} as const;
+
+export const SETTINGS_LAYOUT = {
+  titleY: 0.16,
+  firstRowY: 0.36,
+  rowGap: 38,
+  /** Horizontal positions relative to the screen centre. */
+  labelX: -170,
+  trackX: -50,
+  trackWidth: 160,
+  trackHeight: 4,
+  knobWidth: 6,
+  knobHeight: 14,
+  valueX: 128,
+  /** Extra clickable space around a slider track, so it is easy to hit with a thumb. */
+  hitPadding: 12,
+  /** How faded the volume rows look while sound is off. */
+  dimmedAlpha: 0.4,
+  hintY: 0.9,
+} as const;
+
+/** A small clickable label in a screen corner, such as the menu's SOUND button. */
+export const CORNER_BUTTON = {
+  margin: 10,
+  paddingX: 6,
+  paddingY: 4,
 } as const;
